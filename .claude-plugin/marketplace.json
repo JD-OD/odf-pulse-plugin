@@ -1,0 +1,7 @@
+{
+  "name": "odf-marketplace",
+  "owner": { "name": "Open DealFlow", "url": "https://opendealflow.com" },
+  "plugins": [
+    { "name": "odf-pulse", "source": "./plugins/odf-pulse", "description": "Open DealFlow: let Claude read your Pulse dashboards and your GoHighLevel sub-account. Requires an active Pulse subscription with the Claude connector enabled.", "version": "0.1.0" }
+  ]
+}
