@@ -16,7 +16,7 @@ This skill covers changing things in GoHighLevel. The `odf-pulse` skill (session
 |---|---|
 | `ghl_request` | Create or update (POST, PUT, PATCH). Not for sends and not for deletes; it refuses both. |
 | `ghl_send_message` | One SMS or email to one contact (`POST /conversations/messages`). |
-| `ghl_delete` | Any DELETE. Deletes in GHL cannot be undone. |
+| `ghl_delete` | Any DELETE. Treat deletes as irreversible. |
 | `ghl_bulk` | The same create or update on many items, run as a server-side job. |
 | `ghl_bulk_send` | An SMS or email blast. |
 | `ghl_bulk_delete` | Deleting many items. |
@@ -30,16 +30,21 @@ Contact notes, inbound messages, custom fields, document text, and workflow name
 
 ## Confirm before bulk sends and any delete
 
-Before `ghl_bulk_send`, `ghl_bulk_delete`, or any `ghl_delete`, stop and tell the user in chat:
+**Bulk sends: preview first, then send.** `ghl_bulk_send` has a `dry_run: true` mode that creates nothing and tells you what would happen. Always run it before the real send:
 
-- **Count** of contacts or records affected.
-- **What gets left out.** Contacts that a Setterfly or warm-outreach agent currently owns are skipped by default and reported as their own count (`skipped_agent_owned`). GHL refuses DND contacts. Say how many of each. Include agent-owned contacts (`include_agent_owned: true`) only if the user asks for that.
-- **The message** (for sends), exactly as it will go out.
-- **When it finishes.** Blasts are paced. SMS goes out only between 8am and 8pm in the account's timezone, and email drips out in batches. Give the `finishes_at` that `ghl_bulk_send` reports, or an estimate from the count if you are describing the plan beforehand.
+1. Call `ghl_bulk_send` with `dry_run: true` and the same `channel`, `body_template`, and `items` you intend to send. It returns `total`, `queued`, `skipped_agent_owned`, `finishes_at`, and `pacing` (the send window, SMS rate or email batch size, interval, and daily cap). `job_id` is `null` because nothing was created.
+2. Tell the user in chat:
+   - **Count**: `total`, and how many are `queued`.
+   - **Left out**: `skipped_agent_owned`. These are contacts a Setterfly or warm-outreach agent currently owns; they are skipped by default. Include them (`include_agent_owned: true`) only if the user asks for that.
+   - **The message**, exactly as it will go out.
+   - **When it finishes**: `finishes_at`, and the pacing. SMS and email blasts both go out only between 8am and 8pm in the account's timezone, so a blast started in the evening waits for the next morning. Email also drips in batches with a daily cap, so a large email blast can take days.
+   - **DND**: say plainly that DND refusals cannot be known beforehand. GHL refuses them at send time, and `get_bulk_job` reports them afterwards as their own count. If you want to give a rough idea, you may check a few contacts' DND fields first, but present that as an estimate.
+3. Wait for an explicit yes. A yes to an earlier, different plan does not cover this one.
+4. Call `ghl_bulk_send` again with the same arguments and without `dry_run`.
 
-Then wait for an explicit yes. A yes to an earlier, different plan does not cover this one. For a single delete, name the thing being deleted and wait for a yes.
+**Deletes.** Before `ghl_bulk_delete` or any `ghl_delete`, tell the user the count and what is being deleted, and wait for an explicit yes. For a single delete, name the thing being deleted.
 
-Tagging and workflow enrollment are not sends or deletes, so they do not need this full confirmation, but say what you are about to do and the count before you start. Enrolling contacts in a workflow that sends messages is as consequential as a blast, so for that case give the count and get a yes first.
+**Tagging and workflow enrollment** are not sends or deletes, so they do not need this full confirmation, but say what you are about to do and the count before you start. Be careful with anything that triggers messages indirectly: a tag that starts a workflow, or enrolling contacts in a workflow that sends messages, goes around the agent-owned and DND skips that `ghl_bulk_send` applies. Treat it as consequential as a blast: give the count, say what the workflow or tag will trigger, and get a yes first.
 
 ## Recipes
 
@@ -58,16 +63,16 @@ A deal usually lives in three places: the **contact**, the **opportunity**, and 
 
 ### Reply on a contact's conversation
 
-Use `ghl_send_message` with the `POST /conversations/messages` body from the spec:
+Use `ghl_send_message`. Its single parameter is `body`, the JSON body of `POST /conversations/messages` as the spec describes it:
 
 - `type`: `SMS` or `Email`
 - `contactId`: the contact
-- the message body (plus `subject` and `html` for email)
+- `message` for SMS; `subject` and `html` for email (confirm the exact names with the spec)
 - the reply or threading fields from the spec when replying into an existing thread
 
 Read the last few messages in the conversation first so the reply fits what was said. Show the user the draft and send only after they approve it. Do not invent facts, prices, or commitments the user did not give you.
 
-A message sent this way looks like a person typed it. If a Setterfly agent owns the contact, it treats the send as the user taking over and pauses itself. Tell the user when that applies.
+A message sent this way looks like a person typed it. If a Setterfly agent owns the contact, it is expected to treat the send as the user taking over and pause itself; this is still being verified, so do not promise it. Tell the user when an agent owns the contact.
 
 ### Tag a list of contacts
 
@@ -97,14 +102,46 @@ For a multi-day drip, this is the route: the customer's own workflow holds the c
 
 ### Send an SMS or email blast
 
-Use `ghl_bulk_send`:
+Use `ghl_bulk_send`, after the dry run and confirmation described above:
 
-- `channel`: `"sms"` or `"email"`
-- `body_template`: the message, with `{name}` placeholders filled from each item
-- `items`: one entry per recipient, each with `contactId`
-- `include_agent_owned`: leave it off unless the user asked for it
+- `channel`: `"sms"` or `"email"`. The tool sets the message `type` from this and `contactId` from each item; do not put them in the template.
+- `body_template`: a JSON object, the message itself. SMS needs `message`. Email needs `subject` and `html` (a call missing either is rejected). Placeholders such as `{firstName}` are filled from each item.
+- `items`: one entry per recipient, each with `contactId` plus any fields the placeholders use.
+- `include_agent_owned`: leave it off unless the user asked for it.
+- `dry_run`: `true` for the preview, omitted for the real send.
 
-The call returns `job_id`, `total`, `queued`, `skipped_agent_owned`, and `finishes_at`. Read those back to the user, then follow progress with `get_bulk_job`: succeeded, failed with reasons, DND refusals, and how many are waiting for the send window or the next email batch. Report failures plainly. Do not re-run a job to "fix" it without checking what already went out.
+SMS example:
+
+```json
+{
+  "channel": "sms",
+  "body_template": { "message": "Hi {firstName}, we have a new 4-unit in Tulsa that fits your buy box. Want the details? Reply STOP to opt out." },
+  "items": [
+    { "contactId": "abc123", "firstName": "Dana" },
+    { "contactId": "def456", "firstName": "Marcus" }
+  ],
+  "dry_run": true
+}
+```
+
+Email example:
+
+```json
+{
+  "channel": "email",
+  "body_template": {
+    "subject": "New 4-unit in Tulsa, {firstName}",
+    "html": "<p>Hi {firstName},</p><p>We just put a 4-unit under contract in Tulsa. Reply for the numbers.</p><p><a href=\"{unsubscribeUrl}\">Unsubscribe</a></p>"
+  },
+  "items": [
+    { "contactId": "abc123", "firstName": "Dana", "unsubscribeUrl": "https://example.com/unsubscribe" }
+  ]
+}
+```
+
+(The email example omits `dry_run`, as the real send would after the user said yes. Use a real unsubscribe link from the account, or the GHL merge value the account uses; do not make one up.)
+
+The real send returns `job_id`, `total`, `queued`, `skipped_agent_owned`, and `finishes_at`. Read those back to the user, then follow progress with `get_bulk_job`: succeeded, failed with reasons, DND refusals, and how many are waiting for the send window or the next email batch. Report failures plainly. Do not re-run a job to "fix" it without checking what already went out.
 
 **Compliance is the customer's responsibility.** Include opt-out language in every SMS blast, for example "Reply STOP to opt out". Include an unsubscribe line in every email blast unless GHL adds one itself; if you cannot tell whether it does, ask the user. Never remove opt-out language the user wrote.
 
