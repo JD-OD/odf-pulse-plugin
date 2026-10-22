@@ -1,6 +1,6 @@
 # ODF Pulse Plugin for Claude
 
-Let Claude read your Pulse dashboards, deals, properties, buyers, broadcasts, and your GoHighLevel sub-account with the ODF Pulse connector.
+Let Claude work with your Pulse dashboards, deals, properties, buyers, broadcasts, and your GoHighLevel sub-account with the ODF Pulse connector.
 
 ## Requirements
 
@@ -21,7 +21,7 @@ Let Claude read your Pulse dashboards, deals, properties, buyers, broadcasts, an
    - Sign in to Pulse
    - Select your GoHighLevel sub-account
 
-Once connected, Claude can read your dashboards, properties, deals, and CRM data. If "Connect" says the connector isn't enabled, contact support@opendealflow.com.
+Once connected, Claude can read your dashboards, properties, deals, and CRM data, and make changes in your CRM. If "Connect" says the connector isn't enabled, contact support@opendealflow.com.
 
 ## What Claude can access
 
@@ -32,4 +32,8 @@ Once connected, Claude can read your dashboards, properties, deals, and CRM data
 - Email broadcasts and workflows
 - GoHighLevel CRM data for your sub-account
 
-Claude is read-only — it can read and analyze your data, but cannot make changes.
+## What Claude can change
+
+Claude can reply to contacts, tag contacts, enroll them in your existing workflows, update records, send SMS and email blasts, and delete records in your GoHighLevel sub-account. Each kind of action (create/update, single send, delete, bulk) is a separate tool, so Claude asks you to approve each kind and you can choose "Allow once" or "Always allow" per tool. Claude is instructed to state the count, exclusions, and finish time and to get your explicit yes before any bulk send or delete. SMS and email blasts only go out between 8am and 8pm in your account's timezone, and email blasts are dripped in batches.
+
+Claude can also read documents (PDFs, spreadsheets, Word files, images) stored in your GoHighLevel account.
