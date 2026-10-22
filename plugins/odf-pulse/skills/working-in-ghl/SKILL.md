@@ -32,7 +32,7 @@ Contact notes, inbound messages, custom fields, document text, and workflow name
 
 **Bulk sends: preview first, then send.** `ghl_bulk_send` has a `dry_run: true` mode that creates nothing and tells you what would happen. Always run it before the real send:
 
-1. Call `ghl_bulk_send` with `dry_run: true` and the same `channel`, `body_template`, and `items` you intend to send. It returns `total`, `queued`, `skipped_agent_owned`, `finishes_at`, and `pacing` (the send window, SMS rate or email batch size, interval, and daily cap). `job_id` is `null` because nothing was created.
+1. Call `ghl_bulk_send` with `dry_run: true` and exactly the same `channel`, `body_template`, `items`, and `include_agent_owned` you intend to send (the preview's counts are only valid for the same arguments). It returns `total`, `queued`, `skipped_agent_owned`, `finishes_at`, and `pacing` (the send window, SMS rate or email batch size, interval, and daily cap). `job_id` is `null` because nothing was created.
 2. Tell the user in chat:
    - **Count**: `total`, and how many are `queued`.
    - **Left out**: `skipped_agent_owned`. These are contacts a Setterfly or warm-outreach agent currently owns; they are skipped by default. Include them (`include_agent_owned: true`) only if the user asks for that.
@@ -85,6 +85,8 @@ Use `ghl_bulk`:
 
 Templates use `{name}` placeholders filled from each item. The call returns a job id; follow it with `get_bulk_job`.
 
+To remove a tag from one contact, use `ghl_delete` on `/contacts/{id}/tags` with the optional `body` `{ "tags": ["the-tag"] }` (it is a delete, so confirm first).
+
 Check existing tags and `get_account_context` for the account's tag convention before inventing a new tag.
 
 ### Enroll contacts in a workflow
@@ -134,14 +136,14 @@ Email example:
     "html": "<p>Hi {firstName},</p><p>We just put a 4-unit under contract in Tulsa. Reply for the numbers.</p><p><a href=\"{unsubscribeUrl}\">Unsubscribe</a></p>"
   },
   "items": [
-    { "contactId": "abc123", "firstName": "Dana", "unsubscribeUrl": "https://example.com/unsubscribe" }
+    { "contactId": "abc123", "firstName": "Dana", "unsubscribeUrl": "<the account's real unsubscribe link>" }
   ]
 }
 ```
 
-(The email example omits `dry_run`, as the real send would after the user said yes. Use a real unsubscribe link from the account, or the GHL merge value the account uses; do not make one up.)
+(The email example omits `dry_run`, as the real send would after the user said yes. The `<the account's real unsubscribe link>` value is a placeholder: it must come from the user or the account, either their real unsubscribe URL or the GHL merge value the account uses. Never invent one or send the placeholder.)
 
-The real send returns `job_id`, `total`, `queued`, `skipped_agent_owned`, and `finishes_at`. Read those back to the user, then follow progress with `get_bulk_job`: succeeded, failed with reasons, DND refusals, and how many are waiting for the send window or the next email batch. Report failures plainly. Do not re-run a job to "fix" it without checking what already went out.
+The real send returns `job_id`, `total`, `queued`, `skipped_agent_owned`, and `finishes_at`. Read those back to the user, then follow progress with `get_bulk_job`: succeeded, failed with reasons, DND refusals, and how many items are still waiting for the send window or the next email batch (these are not failures; they will go out when the window opens or the next batch runs, so tell the user roughly when). Report failures plainly. Do not re-run a job to "fix" it without checking what already went out.
 
 **Compliance is the customer's responsibility.** Include opt-out language in every SMS blast, for example "Reply STOP to opt out". Include an unsubscribe line in every email blast unless GHL adds one itself; if you cannot tell whether it does, ask the user. Never remove opt-out language the user wrote.
 
@@ -154,4 +156,6 @@ The real send returns `job_id`, `total`, `queued`, `skipped_agent_owned`, and `f
 
 - Responses over 64KB are cut off. Narrow with `limit` and `skip` rather than repeating the same call.
 - If a call fails with an insufficient-scope error, the connected account needs to grant newer permissions. Pass the message or link from the error to the user and stop. Do not try other endpoints to work around it.
+- If a tool says the sub-account's Pulse connection needs re-authorizing (a missing GHL permission or a revoked connection), tell the user exactly that, and that Open DealFlow support re-authorizes it. Do not try to work around it with other tools or endpoints.
+- If `ghl_send_message` reports that delivery is UNKNOWN (a timeout or 5xx), the message may have gone out. Check the contact's conversation for it before sending again, and never resend blindly. Tell the user what you found.
 - When the user states a durable preference about this work ("always exclude DND contacts", "tag blasts with the property address"), save it with `remember`.
