@@ -31,8 +31,9 @@ To install the ODF Pulse plugin in Claude:
 
 ## What's included
 
-- **ODF Pulse skill** — Establishes safe, read-only access to your Pulse dashboards, deals, properties, buyers, and GoHighLevel CRM
-- **MCP connector** — Routes Claude through the Pulse backend API to read your account data
+- **ODF Pulse skill** — Establishes safe access to your Pulse dashboards, deals, properties, buyers, and GoHighLevel CRM
+- **Working in GHL through Pulse skill** — How Claude changes things in your CRM: replies, tags, workflow enrollment, blasts, deletes, and the confirmations required before bulk sends and deletes
+- **MCP connector** — Routes Claude through the Pulse backend API to work with your account data
 
 ## Support
 
