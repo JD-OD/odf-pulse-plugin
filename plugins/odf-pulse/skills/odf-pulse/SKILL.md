@@ -14,4 +14,6 @@ description: Use whenever the user asks about their Pulse dashboards, deals, pro
 
 **No writes in this version.** If asked to change, send, tag, or delete anything, explain that the connector is read-only today and offer to draft what they'd need.
 
+**Agent activity.** If you run an AI agent that reports to Pulse with `report_agent_events`, add a short reason to each event you report. Put one sentence saying why in `payload.reason`, and the name of the document the decision relied on in `payload.sourceDoc`. Both are optional. They show on the customer's Agents page.
+
 **Remembering.** When the user states a durable preference ("always exclude DND contacts", "our buyer list lives in the Buyers pipeline"), call `remember` with a short key so it survives to the next session.
