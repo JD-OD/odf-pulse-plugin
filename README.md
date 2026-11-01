@@ -19,20 +19,19 @@ To install the ODF Pulse plugin in Claude:
 
 3. **Connect your Pulse account**
    - Go to the plugin page and select **Connectors → Connect**
-   - Sign in to Pulse
-   - Select your GoHighLevel sub-account
+   - Sign in to Pulse and enter the 6-digit code emailed to you
    - You're ready to use Claude with your Pulse data
 
 ## Requirements
 
 - **Paid Claude plan** — Claude API, Claude Pro, or Claude Team
-- **Active Pulse subscription** with the Claude connector enabled
+- **Active Pulse subscription** with the AI Connector enabled
 - If "Connect" says the connector isn't enabled, contact support@opendealflow.com
 
 ## What's included
 
-- **ODF Pulse skill** — Establishes safe, read-only access to your Pulse dashboards, deals, properties, buyers, and GoHighLevel CRM
-- **MCP connector** — Routes Claude through the Pulse backend API to read your account data
+- **ODF Pulse skill**: how Claude works safely with your Pulse dashboards, deals, properties, buyers, CRM and marketing data (it asks before sending, bulk changes or deletes)
+- **MCP connector**: connects Claude to Pulse, which reads and, when you approve, changes your account data
 
 ## Support
 
