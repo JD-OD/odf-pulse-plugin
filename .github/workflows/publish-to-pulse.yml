@@ -1,0 +1,37 @@
+name: Publish skills to Pulse
+
+# Sends this repo's marked skills (SKILL.md frontmatter metadata.pulse) to Pulse,
+# where connected agents read them with get_skill. See odf-skills-meta CLAUDE.md.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: publish-to-pulse
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test the publisher
+        run: python -I .github/pulse/test_publish_skills.py
+      - name: List what will be sent
+        run: python -I .github/pulse/publish_skills.py --dry-run
+      - name: Publish to Pulse
+        if: github.ref == 'refs/heads/main'
+        env:
+          PULSE_URL: https://pulse.opendealflow.com
+          SKILLS_PUBLISH_SECRET: ${{ secrets.SKILLS_PUBLISH_SECRET }}
+        run: python -I .github/pulse/publish_skills.py
